@@ -16,6 +16,7 @@ const dom = {
   unitC: document.getElementById("unitC"),
   unitF: document.getElementById("unitF"),
   year: document.getElementById("year"),
+  bgVideo: document.getElementById("bgVideo"),
 };
 
 
@@ -54,6 +55,44 @@ const weatherCodeMap = {
   96: { label: "Thunderstorm with hail", icon: "⛈️" },
   99: { label: "Thunderstorm with heavy hail", icon: "⛈️" },
 };
+
+// Map Open-Meteo weather codes to a simple background condition
+const RAIN_CODES = new Set([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99,71,73,75,77,85,86]);
+const SUNNY_CODES = new Set([0,1]);
+const CLOUDY_CODES = new Set([2,3,45,48]);
+
+function getConditionFromCode(code) {
+  if (SUNNY_CODES.has(code)) return "sunny";
+  if (RAIN_CODES.has(code)) return "rainy";
+  if (CLOUDY_CODES.has(code)) return "cloudy";
+  // Fallback
+  return "cloudy";
+}
+
+function setBackgroundVideo(condition) {
+  const video = dom.bgVideo;
+  if (!video) return;
+  const current = video.getAttribute("data-condition");
+  if (current === condition) return;
+
+  const srcMap = {
+    sunny: "assets/videos/sunny.mp4",
+    rainy: "assets/videos/rainy.mp4",
+    cloudy: "assets/videos/cloudy.mp4",
+  };
+  const nextSrc = srcMap[condition] || srcMap.cloudy;
+  video.setAttribute("data-condition", condition);
+  if (video.src !== location.origin + "/" + nextSrc) {
+    video.src = nextSrc;
+    try {
+      video.load();
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.then === "function") {
+        playPromise.catch(() => {});
+      }
+    } catch (_) {}
+  }
+}
 
 function setStatus(message, type = "info") {
   if (!dom.status) return;
@@ -177,6 +216,12 @@ function renderCurrent(place, weather) {
   else if (temp >= 5) document.body.className = "cold";
   else document.body.className = "freezing";
   console.log("🌡️ Temp detected:", temp);
+
+  // Update background video based on weather code
+  try {
+    const condition = getConditionFromCode(code);
+    setBackgroundVideo(condition);
+  } catch (_) {}
 
   const map = weatherCodeMap[code] || { label: "N/A", icon: "🌡️" };
   dom.current.innerHTML = `
